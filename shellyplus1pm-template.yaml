@@ -1,14 +1,14 @@
 # These substitutions allow the end user to override certain values
 substitutions:
   name: "shellyplus1pm-template"
-  platformio_options:
-    board_build.f_cpu: 160000000L
 
 esphome:
   name: "${name}"
   # Automatically add the mac address to the name
   # so you can use a single firmware for all devices
   name_add_mac_suffix: true
+  platformio_options:
+    board_build.f_cpu: 160000000L
 
   # This will allow for (future) project identification,
   # configuration and updates.
@@ -36,7 +36,7 @@ ota:
 
 # This should point to the public location of this yaml file.
 dashboard_import:
-  package_import_url: github://esphome/esphome-project-template/project-template-esp32.yaml@main
+  package_import_url: github://jeffglousher/esphome/shellyplus1pm-template.yaml@main
 
 wifi:
   # Set up a wifi access point using the device name above
@@ -45,7 +45,7 @@ wifi:
 
 # In combination with the `ap` this allows the user
 # to provision wifi credentials to the device.
-captive_portal:
+#captive_portal:
 
 ##########################################################
 # Most projects should not remove anything from above here
