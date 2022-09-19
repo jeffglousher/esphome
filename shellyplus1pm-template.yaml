@@ -1,11 +1,29 @@
 # These substitutions allow the end user to override certain values
 substitutions:
-  name: "shellyplus1pm-template"
+  #friendly name including hyphen but not underscores
+  name: "shellyplus1pm-template" 
+  
+  #friendly name for devices including underscore but not hypen
+  id: "shellyplus1pm" 
+  
+  # Higher value gives lower watt readout
+  current_res: "0.001"
+  
+  # Lower value gives lower voltage readout
+  
+  voltage_div: "1925"
+  
+globals:
+  - id: set
+    type: float
+    restore_value: no
+    initial_value: '0'
 
 esphome:
   name: "${name}"
-  # Automatically add the mac address to the name
-  # so you can use a single firmware for all devices
+  comment: "A template version of the Shelly Plus 1PM for easy adoption"
+  
+  # Automatically add the mac address to the name so you can use a single firmware for all devices
   name_add_mac_suffix: true
   platformio_options:
     board_build.f_cpu: 160000000L
@@ -14,7 +32,7 @@ esphome:
   # configuration and updates.
   project:
     name: jeffglousher.shellyplus1pm-template
-    version: "0.1"
+    version: "0.0.1"
 
 esp32:
   board: esp32doit-devkit-v1
@@ -30,18 +48,28 @@ logger:
 
 # API is a requirement of the dashboard import.
 api:
-
+  #encryption:
+    #key: "aNCwOMZiMXVeZL7hjo+Dzk3gH5gdYD952VJJXfFfKcc="
 # OTA is required for Over-the-Air updating
 ota:
+  #password: "2d9ee96d2185b6cbe93442cbd6aba7ad"
+
+time:
+  - platform: homeassistant
 
 # This should point to the public location of this yaml file.
 dashboard_import:
   package_import_url: github://jeffglousher/esphome/shellyplus1pm-template.yaml@main
 
 wifi:
+  #ssid: !secret wifi_ssid
+  ssid: !secret wifi_ssid
+  password: !secret wifi_password
+  use_address: shellyplus1pm-template-942d70.local #Trying to change the name of a node or its address in the network? You can do so with the use_address option of the WiFi configuration.
   # Set up a wifi access point using the device name above
   ap:
-    password: "12345678"
+    #password: !secret ap_password 
+    password: '12345678'
 
 # In combination with the `ap` this allows the user
 # to provision wifi credentials to the device.
@@ -56,9 +84,155 @@ wifi:
 
 # Sets up Bluetooth LE (Only on ESP32) to allow the user
 # to provision wifi credentials to the device.
-esp32_improv:
-  authorizer: none
+#esp32_ble_tracker:
+
+#esp32_improv:
+#  authorizer: none
 
 # Sets up the improv via serial client for Wi-Fi provisioning.
 # Handy if your device has a usb port for the user to add credentials when they first get it.
-improv_serial:
+#improv_serial:
+
+output:
+  - platform: gpio
+    id: "${id}relay_output"
+    pin: GPIO26
+
+switch:
+  - platform: output
+    id: "${id}_switch"
+    name: "${name} Relay"
+    output: "${id}relay_output"
+
+binary_sensor:
+  - platform: gpio
+    id: "${id}_input"
+    pin: GPIO4
+    on_press:
+      then:
+        - switch.toggle: "${id}_switch"
+    filters:
+      - delayed_on_off: 50ms
+  - platform: gpio
+    name: "${name} Button"
+    pin:
+      number: GPIO25
+      inverted: yes
+      mode:
+        input: true
+        pullup: true
+    on_press:
+      then:
+        - switch.toggle: "${id}_switch"
+    filters:
+      - delayed_on_off: 5ms
+  - platform: status
+    name: "Living Room Status"
+
+sensor:
+  - platform: wifi_signal
+    name: "${name} WiFi rssi"
+    update_interval: 60s
+    entity_category: diagnostic 
+  - platform: uptime
+    name: "${name} Sensor"
+    update_interval: 60s
+    entity_category: diagnostic 
+  - platform: ntc
+    sensor: temp_resistance_reading
+    name: "${name} Temperature"
+    entity_category: diagnostic 
+    unit_of_measurement: "°C"
+    accuracy_decimals: 1
+    icon: "mdi:thermometer"
+    calibration:
+      b_constant: 3350
+      reference_resistance: 10kOhm
+      reference_temperature: 298.15K
+    on_value_range:
+      - above: "80.0"
+        then:
+          - switch.turn_off: "${id}_switch"
+  - platform: resistance
+    id: temp_resistance_reading
+    sensor: temp_analog_reading
+    configuration: DOWNSTREAM
+    resistor: 6kOhm
+  - platform: adc
+    id: temp_analog_reading
+    pin: GPIO32
+    attenuation: 11db
+
+  - platform: adc
+    name: "${name} Relay Supply Voltage"
+    pin: GPIO33
+    attenuation: 11db
+    filters:
+      - multiply: 8
+
+  - platform: hlw8012
+    model: BL0937
+    sel_pin:
+      number: GPIO23
+      inverted: true
+    cf_pin: GPIO5
+    cf1_pin: GPIO18
+    current_resistor: ${current_res}
+    voltage_divider: ${voltage_div}
+    current:
+      name: "${name} Current"
+      unit_of_measurement: A
+      accuracy_decimals: 3
+      icon: mdi:flash-outline
+    voltage:
+      name: "${name} Voltage"
+      unit_of_measurement: V
+      accuracy_decimals: 1
+      icon: mdi:flash-outline
+    power:
+      name: "${name} Power"
+      unit_of_measurement: W
+      id: power
+      icon: mdi:flash-outline
+      on_value_range:
+        - above: "3600"
+          then:
+            - switch.turn_off: "${id}_switch"
+    change_mode_every: 2
+    update_interval: 10s
+  - platform: total_daily_energy
+    name: "${name} Daily energy consumed"
+    power_id: power
+    filters:
+        - multiply: 0.001
+    unit_of_measurement: kWh
+    icon: mdi:clock-alert
+
+status_led:
+  pin:
+    number: GPIO0
+    inverted: true
+
+number:
+  - platform: template
+    mode: box
+    id: current_res
+    name: currentRes
+    optimistic: true
+    min_value: .0001
+    max_value: 1
+    step: 0.0001
+    initial_value: 0.001
+    restore_value: true
+    entity_category: config
+  - platform: template
+    mode: box
+    id: voltage_div
+    name: voltageDiv
+    optimistic: true
+    min_value: 0
+    max_value: 2000
+    step: 1
+    initial_value: 1925
+    restore_value: true
+    entity_category: config
