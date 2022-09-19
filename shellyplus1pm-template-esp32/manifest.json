@@ -1,0 +1,9 @@
+{
+  "chipFamily": "ESP32",
+  "parts": [
+    {
+      "path": "shellyplus1pm-template-esp32/shellyplus1pm-template-esp32.bin",
+      "offset": 0
+    }
+  ]
+}
